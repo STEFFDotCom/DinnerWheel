@@ -1,1 +1,5 @@
-13-02-2026,event_type,person,Tacos14-02-2026,event_type,person,Sandwich
+15-02-2026,SPIN,None,Meatballs
+16-02-2026,SPIN,None,Chicken
+16-02-2026,SPIN,None,Lasagna
+16-02-2026,SPIN,None,Meatballs
+16-02-2026,SPIN,None,Pasta
