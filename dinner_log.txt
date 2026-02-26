@@ -1,6 +1,8 @@
-15-02-2026,SPIN,None,Meatballs
-16-02-2026,SPIN,None,Chicken
-16-02-2026,SPIN,None,Lasagna
-16-02-2026,SPIN,None,Meatballs
-16-02-2026,SPIN,None,Pasta
-16-02-2026,FINAL,None,Pasta
+25-02-2026,SPIN,None,Meatballs
+25-02-2026,RESPIN,Steffen,Tacos
+25-02-2026,RESPIN,Sabrina,Lasagna
+25-02-2026,FINAL,None,Lasagna
+26-02-2026,SPIN,None,Sandwich
+26-02-2026,RESPIN,Steffen,Tacos
+26-02-2026,RESPIN,Sabrina,Pasta
+26-02-2026,FINAL,None,Pasta

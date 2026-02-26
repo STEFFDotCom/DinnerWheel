@@ -85,28 +85,42 @@ def run_spin_session():
 
     log_lines = read_dinner_log()
 
+    session_events = []
+
+    SPIN = "SPIN"
+    RESPIN = "RESPIN"
+    FINAL = "FINAL"
+    STEFFEN = "Steffen"
+    SABRINA = "Sabrina"
+    NOPERSON = "None"
+
     for line in log_lines: # Check if a final dinner has already been choosen
-        if line[0] == todaysDate and line[1] == "FINAL":
-            return None
+        if line[0] == todaysDate and line[1] == FINAL:
+            return (False, "Dinner already finalized today.", None, session_events)
         
-    current_dinner = do_spin("SPIN", "None")
+    current_dinner = do_spin(SPIN, NOPERSON)
+
+    if current_dinner is not None:
+        session_events.append((SPIN, NOPERSON, current_dinner))
 
     if current_dinner is None:
-        return None
+        return (False, "No Dinner is available", None, session_events)
 
-    if not has_person_used_respin_today("Steffen"):
-        spinSteffen = do_spin("RESPIN", "Steffen")
+    if not has_person_used_respin_today(STEFFEN):
+        spinSteffen = do_spin(RESPIN, STEFFEN)
         if spinSteffen is not None:
             current_dinner = spinSteffen
+            session_events.append((RESPIN, STEFFEN, spinSteffen))
         
-    if not has_person_used_respin_today("Sabrina"):
-        spinSabrina = do_spin("RESPIN", "Sabrina")
+    if not has_person_used_respin_today(SABRINA):
+        spinSabrina = do_spin(RESPIN, SABRINA)
         if spinSabrina is not None:
             current_dinner = spinSabrina
+            session_events.append((RESPIN, SABRINA, spinSabrina))
         
-    log_event("FINAL", "None", current_dinner)
+    log_event(FINAL, NOPERSON, current_dinner)
 
-    return current_dinner
+    return (True, "Dinner Chosen.", current_dinner, session_events)
 
 def has_person_used_respin_today(person_name):
 
@@ -155,6 +169,19 @@ def get_most_recent_final_dinner():
         
     return None
 
+def print_last_n_final_dinner(n = 5):
+
+    last_5_dinners = get_last_n_final_dinners(n)
+
+    if not last_5_dinners:
+        print("No previous FINAL dinners found yet.")
+        return
+    
+    print("Last", n, "dinners:")
+
+    for date, dinner in last_5_dinners:
+        print(f"{date}: {dinner}")
+
 
 # -----------------
 # MAIN PROGRAM FLOW
@@ -162,54 +189,29 @@ def get_most_recent_final_dinner():
 
 def main():
 
-    used_dinners = get_used_dinners_today()
+    print_last_n_final_dinner(5)
+    print() # blank line
 
-    available_dinners = []
+    success, message, dinner, session_events = run_spin_session()
 
-    for dinner in dinners:
-        if dinner not in used_dinners:
-            available_dinners.append(dinner)
+    print(message)
+
+    # Print the session journey(log)
+    if session_events:
+        print("\nToday's spins:")
+        for event_type, person, spun_dinner in session_events:
+            if event_type == "SPIN":
+                print(f"- SPIN: {spun_dinner}")
+            elif event_type == "RESPIN":
+                print(f"- RESPIN ({person}): {spun_dinner}")
+            else:
+                print(f"- {event_type} ({person}): {spun_dinner}")
     
-    if len(available_dinners) == 0:
-        print("All dinners have been used today 🍽️")
-        return
-
-    result = choose_dinner(available_dinners)
-
-    print(f"Tonights dinner: {result}")
-
-    log_event("SPIN", "None", result)
-
-    print(read_dinner_log())
-
-    print(get_spin_count_today())
+    if success:
+        print(f"Todays Dinner: {dinner}")
 
 
 
 # this starts the program
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-""""
-def dinner_already_chosen_today(): # check if todays dinner was already choosen
-    
-    todaysDate = datetime.date.today().strftime("%d-%m-%Y")
-
-    if not os.path.exists(LOG_FILE):
-        return False # No File = no dinner yet
-    
-    with open(LOG_FILE, "r") as file:
-        for line in file:
-            stripped_line = line.strip()
-            split_line = stripped_line.split(",")
-
-            if len(split_line) == 4 and split_line[0] == todaysDate:
-                return True
-    
-    return False
-"""
