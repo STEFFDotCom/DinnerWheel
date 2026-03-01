@@ -6,3 +6,7 @@
 26-02-2026,RESPIN,Steffen,Tacos
 26-02-2026,RESPIN,Sabrina,Pasta
 26-02-2026,FINAL,None,Pasta
+01-03-2026,SPIN,None,Lasagna
+01-03-2026,RESPIN,Steffen,Meatballs
+01-03-2026,RESPIN,Sabrina,Steak
+01-03-2026,FINAL,None,Steak
