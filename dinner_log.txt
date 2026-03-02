@@ -10,3 +10,6 @@
 01-03-2026,RESPIN,Steffen,Meatballs
 01-03-2026,RESPIN,Sabrina,Steak
 01-03-2026,FINAL,None,Steak
+02-03-2026,SPIN,None,Kylling korma med naan brød
+02-03-2026,RESPIN,Steffen,Ricotta pasta med citron
+02-03-2026,FINAL,None,Ricotta pasta med citron

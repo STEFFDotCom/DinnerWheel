@@ -88,42 +88,6 @@ def get_used_dinners_today(): # return used dinners
 
     return list(set(used_dinners))
 
-def run_spin_session():
-
-    todaysDate = datetime.date.today().strftime("%d-%m-%Y")
-
-    log_lines = read_dinner_log()
-
-    session_events = []
-
-    for line in log_lines: # Check if a final dinner has already been choosen
-        if line[0] == todaysDate and line[1] == FINAL:
-            return (False, f"Dinner was already finalized today: {line[3]}", None, session_events)
-        
-    current_dinner = do_spin(SPIN, NOPERSON)
-
-    if current_dinner is not None:
-        session_events.append((SPIN, NOPERSON, current_dinner))
-
-    if current_dinner is None:
-        return (False, "No Dinner is available", None, session_events)
-
-    if not has_person_used_respin_today(STEFFEN):
-        spinSteffen = do_spin(RESPIN, STEFFEN)
-        if spinSteffen is not None:
-            current_dinner = spinSteffen
-            session_events.append((RESPIN, STEFFEN, spinSteffen))
-        
-    if not has_person_used_respin_today(SABRINA):
-        spinSabrina = do_spin(RESPIN, SABRINA)
-        if spinSabrina is not None:
-            current_dinner = spinSabrina
-            session_events.append((RESPIN, SABRINA, spinSabrina))
-        
-    log_event(FINAL, NOPERSON, current_dinner)
-
-    return (True, "Dinner Chosen.", current_dinner, session_events)
-
 def has_person_used_respin_today(person_name):
 
     log_lines = read_dinner_log()
@@ -241,7 +205,69 @@ def action_spin():
     
 def action_respin(person):
     
+    todaysDate = datetime.date.today().strftime("%d-%m-%Y")
 
+    todays_events = get_session_events_for_date(todaysDate)
+
+    final_dinner = get_final_dinner_for_date(todaysDate)
+
+    spin_found = False
+
+    if person != STEFFEN and person != SABRINA:
+        return (False, "Only Steffen or Sabrina is allowed to spin.", None)
+    
+    if final_dinner:
+        return (False, f"Dinner is already finalized today: {final_dinner}", final_dinner)
+    
+    for line in todays_events:
+        if line[0] == SPIN:
+            spin_found = True
+    
+    if spin_found == False:
+        return (False, "You must do an initial spin first.", None)
+    
+    if has_person_used_respin_today(person):
+        return (False, f"{person} has already used their respin today", None)
+    
+    do_respin = do_spin(RESPIN, person)
+
+    if do_respin is None:
+        return (False, "Could not do respin.", None)
+    else:
+        return (True, "Respin successful", do_respin)
+    
+def action_finalize():
+
+    todaysDate = datetime.date.today().strftime("%d-%m-%Y")
+
+    final_dinner = get_final_dinner_for_date(todaysDate)
+
+    current_dinner = get_current_dinner_for_date(todaysDate)
+
+    if final_dinner:
+        return (False, f"Dinner is already finalized today: {final_dinner}", final_dinner)
+    
+    if current_dinner is None:
+        return (False, "You must first spin.", None)
+    else:
+        log_event(FINAL, NOPERSON, current_dinner)
+        return (True, "Final dinner has been chosen.", current_dinner)
+    
+def maybe_auto_finalize_today():
+
+    todaysDate = datetime.date.today().strftime("%d-%m-%Y")
+    current_dinner = get_current_dinner_for_date(todaysDate)
+    final_dinner = get_final_dinner_for_date(todaysDate)
+
+    if final_dinner:
+        return (False, "Already finalized", final_dinner)
+    
+    if has_person_used_respin_today(SABRINA) and has_person_used_respin_today(STEFFEN):
+        if current_dinner is not None:
+            success, message, dinner = action_finalize()
+            return (True, "Auto-finalized", dinner)
+    else:
+        return (False, "", None)
 
 # -----------------
 # MAIN PROGRAM FLOW
@@ -252,24 +278,82 @@ def main():
     print_last_n_final_dinner(5)
     print() # blank line
 
-    success, message, dinner, session_events = run_spin_session()
+    while True:
 
-    print(message)
+        todaysDate = datetime.date.today().strftime("%d-%m-%Y")
+        current_dinner = get_current_dinner_for_date(todaysDate)
+        final_dinner = get_final_dinner_for_date(todaysDate)
+        session_events = get_session_events_for_date(todaysDate)
 
-    # Print the session journey(log)
-    if session_events:
-        print("\nToday's spins:")
-        for event_type, person, spun_dinner in session_events:
-            if event_type == SPIN:
-                print(f"- SPIN: {spun_dinner}")
-            elif event_type == RESPIN:
-                print(f"- RESPIN ({person}): {spun_dinner}")
-            else:
-                print(f"- {event_type} ({person}): {spun_dinner}")
-    
-    if success:
-        print(f"Todays Dinner: {dinner}")
+        print("") # print blank
 
+        print(f"---{todaysDate}---")
+
+        if final_dinner:
+            print(f"Final dinner: {final_dinner}")
+        else:
+            print(f"Final dinner: Not Finalized")
+
+        if current_dinner:
+            print(f"Current dinner: {current_dinner}")
+        else:
+            print(f"Current dinner: None")
+
+        if len(session_events) == 0:
+            print("No events yet.")
+        else:
+            for event_type, person, dinner in session_events:
+                if event_type == SPIN:
+                    print(f"- {event_type}: {dinner}")
+                elif event_type == RESPIN:
+                    print(f"- {event_type} ({person}): {dinner}")
+                elif event_type == FINAL:
+                    print(f"- {event_type}: {dinner}")
+
+        print("") # print blank
+
+        choice = input("Press 1 to spin, 2 for Steffen respin, 3 for Sabrina respin, 4 to finalize dinner or 0 to exit: ")
+
+        if choice == "1":
+            success, message, dinner = action_spin()
+            print(message)
+            if success:
+                print(f"Todays dinner is: {dinner}")
+                did_finalize, auto_msg, final_dinner = maybe_auto_finalize_today()
+                if did_finalize:
+                    print(f"{auto_msg}: {final_dinner}")
+                    break
+        elif choice == "2":
+            success, message, dinner = action_respin(STEFFEN)
+            print(message)
+            if success:
+                print(f"Steffen used his respin and dinner is now: {dinner}")
+                did_finalize, auto_msg, final_dinner = maybe_auto_finalize_today()
+                if did_finalize:
+                    print(f"{auto_msg}: {final_dinner}")
+                    break
+        elif choice == "3":
+            success, message, dinner = action_respin(SABRINA)
+            print(message)
+            if success:
+                print(f"Sabrina used her respin and dinner is now: {dinner}")
+                did_finalize, auto_msg, final_dinner = maybe_auto_finalize_today()
+                if did_finalize:
+                    print(f"{auto_msg}: {final_dinner}")
+                    break
+        elif choice == "4":
+            success, message, dinner = action_finalize()
+            print(message)
+            if success:
+                print(f"Dinner has been finalized: {dinner}")
+                break
+        elif choice == "0":
+            print("Exiting program.")
+            break
+        else:
+            print("Invalid choise - please enter 0, 1, 2, 3 or 4.")
+        
+        
 
 
 # this starts the program
