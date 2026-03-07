@@ -13,3 +13,7 @@
 02-03-2026,SPIN,None,Kylling korma med naan brød
 02-03-2026,RESPIN,Steffen,Ricotta pasta med citron
 02-03-2026,FINAL,None,Ricotta pasta med citron
+07-03-2026,SPIN,None,Avocado carbonara
+07-03-2026,RESPIN,Steffen,Lasagne
+07-03-2026,RESPIN,Sabrina,Kylling korma med naan brød
+07-03-2026,FINAL,None,Kylling korma med naan brød

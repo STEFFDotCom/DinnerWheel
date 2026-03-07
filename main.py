@@ -1,9 +1,11 @@
 import random
 import os
 import datetime
+import sqlite3
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # declare a base directory that is the same folder as our py script
 LOG_FILE = os.path.join(BASE_DIR, "dinner_log.txt") # make dinner_log.txt use the base directory
+DB_FILE = os.path.join(BASE_DIR, "dinner_wheel.db") # make shortcut for database using base directory
 DINNER_LIST_FILE = os.path.join(BASE_DIR, "aftensmad retter til hjul.txt")
 
 SPIN = "SPIN"
@@ -83,7 +85,11 @@ def get_used_dinners_today(): # return used dinners
     used_dinners = []
 
     for line in log_file:
-        if len(line) == 4 and line[0] == todaysDate:
+
+        if len(line) != 4:
+            continue
+
+        if line[0] == todaysDate:
             used_dinners.append(line[3])
 
     return list(set(used_dinners))
@@ -95,6 +101,10 @@ def has_person_used_respin_today(person_name):
     todaysDate = datetime.date.today().strftime("%d-%m-%Y")
     
     for line in log_lines:
+
+        if len(line) != 4:
+            continue
+
         if line[0] == todaysDate and line[1] == RESPIN and line[2] == person_name:
             return True
     
@@ -120,7 +130,11 @@ def get_last_n_final_dinners(n = 5):
     log_file = read_dinner_log()
 
     for line in log_file:
-        if len(line) == 4 and line[1] == FINAL:
+
+        if len(line) != 4:
+            continue
+
+        if line[1] == FINAL:
             last_5_dinners.append((line[0], line[3]))
 
     return last_5_dinners[-n:]
@@ -130,6 +144,10 @@ def get_most_recent_final_dinner():
     log_file = read_dinner_log()
 
     for line in reversed(log_file):
+
+        if len(line) != 4:
+            continue
+
         if line[1] == FINAL:
             return line[3]
         
@@ -268,10 +286,62 @@ def maybe_auto_finalize_today():
             return (True, "Auto-finalized", dinner)
     else:
         return (False, "", None)
+    
+def print_todays_status():
+    
+    todaysDate = datetime.date.today().strftime("%d-%m-%Y")
+    current_dinner = get_current_dinner_for_date(todaysDate)
+    final_dinner = get_final_dinner_for_date(todaysDate)
+    session_events = get_session_events_for_date(todaysDate)
+
+    print(f"---{todaysDate}---")
+
+    if final_dinner:
+        print(f"Final dinner: {final_dinner}")
+    else:
+        print("Final dinner: Not finalized")
+    
+    if current_dinner:  
+        print(f"Current dinner: {current_dinner}")
+    else:
+        print("Current dinner: None")
+    
+    print(f"Events today:")
+    
+    if len(session_events) == 0:
+        print("No events yet.")
+    else:
+        for event_type, person, dinner in session_events:
+            if event_type == SPIN:
+                print(f"- {event_type}: {dinner}")
+            elif event_type == RESPIN:
+                print(f"- {event_type} ({person}): {dinner}")
+            elif event_type == FINAL:
+                print(f"- {event_type}: {dinner}")
+
+def initialize_database():
+
+    connection = sqlite3.connect(DB_FILE)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS dinner_log(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            event_type TEXT,
+            person TEXT,
+            dinner TEXT
+        )
+    """)
+
+    connection.commit()
+    connection.close()
 
 # -----------------
 # MAIN PROGRAM FLOW
 # -----------------
+
+initialize_database()
 
 def main():
 
@@ -280,37 +350,9 @@ def main():
 
     while True:
 
-        todaysDate = datetime.date.today().strftime("%d-%m-%Y")
-        current_dinner = get_current_dinner_for_date(todaysDate)
-        final_dinner = get_final_dinner_for_date(todaysDate)
-        session_events = get_session_events_for_date(todaysDate)
-
-        print("") # print blank
-
-        print(f"---{todaysDate}---")
-
-        if final_dinner:
-            print(f"Final dinner: {final_dinner}")
-        else:
-            print(f"Final dinner: Not Finalized")
-
-        if current_dinner:
-            print(f"Current dinner: {current_dinner}")
-        else:
-            print(f"Current dinner: None")
-
-        if len(session_events) == 0:
-            print("No events yet.")
-        else:
-            for event_type, person, dinner in session_events:
-                if event_type == SPIN:
-                    print(f"- {event_type}: {dinner}")
-                elif event_type == RESPIN:
-                    print(f"- {event_type} ({person}): {dinner}")
-                elif event_type == FINAL:
-                    print(f"- {event_type}: {dinner}")
-
-        print("") # print blank
+        print("")
+        print_todays_status()
+        print("")
 
         choice = input("Press 1 to spin, 2 for Steffen respin, 3 for Sabrina respin, 4 to finalize dinner or 0 to exit: ")
 
