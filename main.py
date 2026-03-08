@@ -4,7 +4,6 @@ import datetime
 import sqlite3
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # declare a base directory that is the same folder as our py script
-LOG_FILE = os.path.join(BASE_DIR, "dinner_log.txt") # make dinner_log.txt use the base directory
 DB_FILE = os.path.join(BASE_DIR, "dinner_wheel.db") # make shortcut for database using base directory
 DINNER_LIST_FILE = os.path.join(BASE_DIR, "aftensmad retter til hjul.txt")
 
@@ -39,28 +38,32 @@ def log_event(event_type, person, dinner): # function to save dinner to our file
 
     todaysDate = datetime.date.today().strftime("%d-%m-%Y")
 
-    log_file_line = f"{todaysDate},{event_type},{person},{dinner}\n"
+    connection = sqlite3.connect(DB_FILE)
+    cursor = connection.cursor()
 
-    with open(LOG_FILE, "a") as file:
-        file.write(log_file_line)
+    cursor.execute("""
+        INSERT INTO dinner_log (date, event_type, person, dinner)
+        VALUES (?, ?, ?, ?)
+    """, (todaysDate, event_type, person, dinner))
+
+    connection.commit()
+    connection.close()
 
 def read_dinner_log(): # function to read dinner log and clean it
 
-    if not os.path.exists(LOG_FILE):
-        print("FILE DOES NOT EXIST")
-        return []
+    connection = sqlite3.connect(DB_FILE)
+    cursor = connection.cursor()
 
-    cleaned_lines = []
+    cursor.execute("""
+        SELECT date, event_type, person, dinner
+        FROM dinner_log
+    """)
 
-    with open(LOG_FILE, "r") as file:
-        lines = file.readlines()
+    rows = cursor.fetchall()
 
-    for line in lines:
-        cleaned_line = line.strip()
-        split_lines = cleaned_line.split(",")
-        cleaned_lines.append(split_lines)
+    connection.close()
 
-    return cleaned_lines
+    return rows
 
 def get_available_dinners():
     
@@ -80,11 +83,11 @@ def get_used_dinners_today(): # return used dinners
 
     todaysDate = datetime.date.today().strftime("%d-%m-%Y")
 
-    log_file = read_dinner_log()
+    log_rows = read_dinner_log()
 
     used_dinners = []
 
-    for line in log_file:
+    for line in log_rows:
 
         if len(line) != 4:
             continue
