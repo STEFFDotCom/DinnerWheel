@@ -1,11 +1,11 @@
 import random
 import os
-import datetime
+import datetime # all dinner events use DD-MM-YYYY format for consistency in the log
 import sqlite3
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # declare a base directory that is the same folder as our py script
 DB_FILE = os.path.join(BASE_DIR, "dinner_wheel.db") # make shortcut for database using base directory
-DINNER_LIST_FILE = os.path.join(BASE_DIR, "aftensmad retter til hjul.txt")
+DINNER_LIST_FILE = os.path.join(BASE_DIR, "aftensmad retter til hjul.txt") # shortcut for dinner list file
 
 SPIN = "SPIN"
 RESPIN = "RESPIN"
@@ -16,11 +16,13 @@ NOPERSON = "None"
 
 def load_dinners_from_file(file_path):
 
+    # if path does not exist return none
     if not os.path.exists(file_path):
         return []
 
     dinners_from_file = []
 
+    # open dinner file and strip every line from whitespaces
     with open(file_path, "r", encoding="utf-8") as f:
         for line in f:
             item = line.strip()
@@ -41,6 +43,7 @@ def get_all_dinners_from_db():
 
     dinners = []
 
+    # row[0] = dinner_name
     for row in rows:
         dinners.append(row[0])
 
@@ -49,6 +52,7 @@ def get_all_dinners_from_db():
 def choose_dinner(dinner_options): # function to return random dinner
     return random.choice(dinner_options)
 
+# function to log events to DB
 def log_event(event_type, person, dinner):
 
     todaysDate = datetime.date.today().strftime("%d-%m-%Y")
@@ -60,7 +64,8 @@ def log_event(event_type, person, dinner):
             VALUES (?,?,?,?)
         """, (todaysDate, event_type, person, dinner))
 
-def read_dinner_log(): # function to read dinner log and clean it
+# function that reads dinner_log from DB and returns it
+def read_dinner_log():
 
     with sqlite3.connect(DB_FILE) as connection:
         cursor = connection.cursor()
@@ -88,7 +93,7 @@ def get_available_dinners():
 
     return available_dinners
 
-def get_used_dinners_today(): # return used dinners
+def get_used_dinners_today():
 
     todaysDate = datetime.date.today().strftime("%d-%m-%Y")
 
@@ -104,6 +109,7 @@ def get_used_dinners_today(): # return used dinners
         if line[0] == todaysDate:
             used_dinners.append(line[3])
 
+    # set removes duplicates
     return list(set(used_dinners))
 
 def has_person_used_respin_today(person_name):
@@ -149,6 +155,7 @@ def get_last_n_final_dinners(n = 5):
         if line[1] == FINAL:
             last_5_dinners.append((line[0], line[3]))
 
+    # start from -5 = last 5 dinners
     return last_5_dinners[-n:]
 
 def get_most_recent_final_dinner():
