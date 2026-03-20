@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dinner Wheel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg:      #0f0e17;
+            --surface: #1a1929;
+            --card:    #211f35;
+            --border:  rgba(255,255,255,0.07);
+            --accent:  #f4a237;
+            --accent2: #e8612c;
+            --text:    #ede8e0;
+            --muted:   #8a8799;
+            --danger:  #e05252;
+            --success: #52c27e;
+            --radius:  16px;
+            --shadow:  0 8px 40px rgba(0,0,0,0.5);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -200px; left: 50%;
+            transform: translateX(-50%);
+            width: 800px; height: 500px;
+            background: radial-gradient(ellipse, rgba(244,162,55,0.08) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Layout ─────────────────────────────────────────── */
+        .page-wrapper {
+            position: relative; z-index: 1;
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 28px;
+            align-items: start;
+        }
+
+        @media (max-width: 820px) { .main-grid { grid-template-columns: 1fr; } }
+
+        /* ── Header ─────────────────────────────────────────── */
+        header { text-align: center; margin-bottom: 48px; }
+
+        header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.4rem, 5vw, 3.6rem);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--accent) 0%, #fff5e0 60%, var(--accent2) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+        }
+
+        header p {
+            color: var(--muted); font-size: 0.95rem; margin-top: 8px;
+            letter-spacing: 0.08em; text-transform: uppercase; font-weight: 300;
+        }
+
+        /* ── Flash ──────────────────────────────────────────── */
+        .flash-wrapper { margin-bottom: 28px; }
+
+        .flash {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 20px; border-radius: var(--radius);
+            font-size: 0.9rem; font-weight: 500;
+            animation: slideDown 0.35s ease;
+            margin-bottom: 8px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+        }
+
+        .flash::before { content: '✦'; color: var(--accent); font-size: 0.75rem; }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Card ───────────────────────────────────────────── */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .card-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.05rem; font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 18px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* ── Wheel ──────────────────────────────────────────── */
+        .wheel-section { display: flex; flex-direction: column; align-items: center; }
+
+        .wheel-wrap { position: relative; width: 340px; height: 340px; }
+
+        .wheel-pointer {
+            position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 12px solid transparent; border-right: 12px solid transparent;
+            border-top: 24px solid var(--accent);
+            filter: drop-shadow(0 2px 8px rgba(244,162,55,0.7));
+            z-index: 10;
+        }
+
+        .wheel-wrap::before {
+            content: ''; position: absolute; inset: -12px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(244,162,55,0.12) 0%, transparent 70%);
+        }
+
+        #wheelCanvas {
+            border-radius: 50%;
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.06), 0 12px 60px rgba(0,0,0,0.6);
+            display: block;
+        }
+
+        /* ── Buttons ────────────────────────────────────────── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 13px 28px; border: none; border-radius: 100px;
+            font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500;
+            cursor: pointer; text-decoration: none;
+            transition: transform 0.15s, box-shadow 0.15s, background 0.15s, opacity 0.2s;
+        }
+
+        .btn:hover  { transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(244,162,55,0.35);
+            font-size: 1.05rem; padding: 15px 40px;
+        }
+
+        .btn-primary:hover    { box-shadow: 0 6px 28px rgba(244,162,55,0.5); }
+        .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.07); color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover    { background: rgba(255,255,255,0.12); }
+        .btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        .btn-success {
+            background: rgba(82,194,126,0.15); color: var(--success);
+            border: 1px solid rgba(82,194,126,0.2);
+        }
+
+        .btn-success:hover { background: rgba(82,194,126,0.25); }
+
+        .actions {
+            display: flex; flex-wrap: wrap; gap: 10px;
+            justify-content: center; margin-top: 24px;
+        }
+
+        /* ── Status row ─────────────────────────────────────── */
+        .status-row {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 14px; margin-top: 28px;
+            width: 100%; max-width: 360px;
+        }
+
+        .status-item {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px; text-align: center;
+            transition: border-color 0.4s;
+        }
+
+        .status-item.highlight { border-color: var(--accent); }
+
+        .status-item .label {
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--muted); margin-bottom: 6px;
+        }
+
+        .status-item .value {
+            font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700;
+        }
+
+        .status-item .value.finalized { color: var(--success); }
+
+        .status-item .value.empty {
+            color: var(--muted); font-style: italic;
+            font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 400;
+        }
+
+        /* ── Dinner image ────────────────────────────────────── */
+        .dinner-image-wrap {
+            margin-top: 24px; width: 100%; max-width: 360px;
+            border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+            max-height: 0; transition: max-height 0.6s ease;
+        }
+
+        .dinner-image-wrap.visible { max-height: 260px; }
+
+        .dinner-image-wrap img {
+            width: 100%; display: block; object-fit: cover; max-height: 220px;
+        }
+
+        /* ── Result banner ───────────────────────────────────── */
+        #result-banner {
+            display: none; margin-top: 20px; padding: 14px 24px;
+            background: linear-gradient(135deg, rgba(244,162,55,0.15), rgba(232,97,44,0.1));
+            border: 1px solid rgba(244,162,55,0.3); border-radius: 100px;
+            font-family: 'Playfair Display', serif; font-size: 1.15rem;
+            color: var(--accent); text-align: center;
+        }
+
+        #result-banner.show {
+            display: block;
+            animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* ── Sidebar ─────────────────────────────────────────── */
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+        .input-row { display: flex; gap: 8px; }
+
+        input[type="text"] {
+            flex: 1; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 100px; padding: 11px 18px; color: var(--text);
+            font-family: 'DM Sans', sans-serif; font-size: 0.9rem; outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus        { border-color: var(--accent); }
+        input[type="text"]::placeholder { color: var(--muted); }
+
+        /* ── Dinner list ─────────────────────────────────────── */
+        .dinner-list {
+            list-style: none; display: flex; flex-direction: column;
+            gap: 6px; max-height: 280px; overflow-y: auto; padding-right: 4px;
+        }
+
+        .dinner-list::-webkit-scrollbar       { width: 4px; }
+        .dinner-list::-webkit-scrollbar-track { background: transparent; }
+        .dinner-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .dinner-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: var(--surface);
+            border: 1px solid var(--border); border-radius: 10px;
+            font-size: 0.88rem; transition: background 0.15s, border-color 0.3s;
+        }
+
+        .dinner-item:hover  { background: rgba(255,255,255,0.05); }
+        .dinner-item.chosen { border-color: var(--accent); background: rgba(244,162,55,0.08); }
+
+        .dinner-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .remove-btn {
+            background: none; border: none; color: var(--muted); cursor: pointer;
+            font-size: 1rem; padding: 2px 4px; border-radius: 4px;
+            flex-shrink: 0; margin-left: 8px; transition: color 0.15s; text-decoration: none;
+        }
+
+        .remove-btn:hover { color: var(--danger); }
+
+        /* ── Recent dinners list ─────────────────────────────── */
+        .recent-list {
+            list-style: none; display: flex; flex-direction: column; gap: 8px;
+        }
+
+        .recent-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: var(--surface);
+            border: 1px solid var(--border); border-radius: 10px; font-size: 0.88rem;
+        }
+
+        .recent-item .r-name { font-weight: 500; }
+
+        .recent-item .r-date {
+            font-size: 0.75rem; color: var(--muted); white-space: nowrap; margin-left: 10px;
+        }
+
+        /* ── Stats bars ──────────────────────────────────────── */
+        .stat-row {
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        .stat-item { font-size: 0.88rem; }
+
+        .stat-header {
+            display: flex; justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .stat-name { font-weight: 500; }
+        .stat-count { color: var(--accent); font-weight: 600; font-size: 0.82rem; }
+
+        .stat-bar-bg {
+            height: 6px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden;
+        }
+
+        .stat-bar-fill {
+            height: 100%; border-radius: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            transition: width 0.8s ease;
+        }
+
+        .empty-state {
+            text-align: center; color: var(--muted); font-size: 0.88rem; padding: 16px;
+        }
+
+        footer {
+            text-align: center; color: var(--muted);
+            font-size: 0.78rem; margin-top: 60px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+    <header>
+        <h1>🍽 Dinner Wheel</h1>
+        <p>Steffen &amp; Sabrina's nightly spin</p>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="flash-wrapper">
+            {% for msg in messages %}
+            <div class="flash">{{ msg }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="main-grid">
+
+        <!-- ══ LEFT: WHEEL ══════════════════════════════════════ -->
+        <div class="wheel-section">
+
+            <div class="wheel-wrap">
+                <div class="wheel-pointer"></div>
+                <canvas id="wheelCanvas" width="340" height="340"></canvas>
+            </div>
+
+            <div style="margin-top: 28px;">
+                <button class="btn btn-primary" id="spinBtn" onclick="doSpin('/api/spin', 'spinBtn')">
+                    🎡 Spin the Wheel
+                </button>
+            </div>
+
+            <div id="result-banner"></div>
+
+            <div class="actions">
+                <button class="btn btn-secondary" id="respinSteffenBtn"
+                        onclick="doSpin('/api/respin/steffen', 'respinSteffenBtn')">
+                    ↩ Respin Steffen
+                </button>
+                <button class="btn btn-secondary" id="respinSabrinaBtn"
+                        onclick="doSpin('/api/respin/sabrina', 'respinSabrinaBtn')">
+                    ↩ Respin Sabrina
+                </button>
+                <a class="btn btn-success" href="/finalize">✔ Finalize</a>
+            </div>
+
+            <div class="status-row">
+                <div class="status-item" id="status-current">
+                    <div class="label">Current</div>
+                    <div class="value {% if not current %}empty{% endif %}" id="val-current">
+                        {{ current if current else "Not spun yet" }}
+                    </div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Tonight's Dinner</div>
+                    <div class="value {% if final %}finalized{% else %}empty{% endif %}">
+                        {{ final if final else "Not finalized" }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dinner image -->
+            <div class="dinner-image-wrap {% if image %}visible{% endif %}" id="dinner-image-wrap">
+                <img id="dinner-img"
+                     {% if image %}src="{{ url_for('static', filename='images/' + image) }}"{% endif %}
+                     alt="{{ current if current else '' }}"
+                     onerror="this.parentElement.classList.remove('visible')">
+            </div>
+
+        </div>
+
+        <!-- ══ RIGHT: SIDEBAR ═══════════════════════════════════ -->
+        <div class="sidebar">
+
+            <!-- Add dinner -->
+            <div class="card">
+                <div class="card-title">🍴 Add a Dinner</div>
+                <form action="/add_dinner" method="post">
+                    <div class="input-row">
+                        <input type="text" name="dinner" placeholder="e.g. Pasta Carbonara" autocomplete="off">
+                        <button type="submit" class="btn btn-primary"
+                                style="padding:11px 20px; font-size:0.9rem;">Add</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Dinner options list -->
+            <div class="card">
+                <div class="card-title">
+                    📋 Dinner Options
+                    <span style="margin-left:auto; font-family:'DM Sans',sans-serif;
+                                 font-size:0.8rem; color:var(--muted); font-weight:400;">
+                        {{ dinners | length }} total
+                    </span>
+                </div>
+
+                {% if dinners %}
+                <ul class="dinner-list" id="dinner-list">
+                    {% for dinner in dinners %}
+                    <li class="dinner-item {% if current and dinner == current %}chosen{% endif %}"
+                        data-name="{{ dinner }}">
+                        <span>{{ dinner }}</span>
+                        <a class="remove-btn" href="/remove_dinner/{{ loop.index0 }}" title="Remove">✕</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="empty-state">No dinners added yet.<br>Add one above to get started.</div>
+                {% endif %}
+            </div>
+
+            <!-- Last 5 dinners -->
+            <div class="card">
+                <div class="card-title">🕐 Recent Dinners</div>
+
+                {% if last_dinners %}
+                <ul class="recent-list">
+                    {% for date, dinner in last_dinners | reverse %}
+                    <li class="recent-item">
+                        <span class="r-name">{{ dinner }}</span>
+                        <span class="r-date">{{ date }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="empty-state">No finalized dinners yet.</div>
+                {% endif %}
+            </div>
+
+            <!-- Dinner stats / hall of fame -->
+            <div class="card">
+                <div class="card-title">🏆 Most Eaten</div>
+
+                {% if stats %}
+                {% set max_count = stats[0][1] %}
+                <div class="stat-row">
+                    {% for dinner, count in stats[:8] %}
+                    <div class="stat-item">
+                        <div class="stat-header">
+                            <span class="stat-name">{{ dinner }}</span>
+                            <span class="stat-count">{{ count }}×</span>
+                        </div>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill"
+                                 style="width: {{ (count / max_count * 100) | round | int }}%">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">No data yet — finalize a dinner to start tracking.</div>
+                {% endif %}
+            </div>
+
+        </div><!-- /sidebar -->
+
+    </div><!-- /main-grid -->
+
+    <footer>Dinner Wheel · Made with ❤️ for Steffen &amp; Sabrina</footer>
+
+</div>
+
+<!-- ══ JAVASCRIPT ═══════════════════════════════════════════════ -->
+<script>
+    const dinners = JSON.parse('{{ dinners | tojson | safe }}');
+    const staticBase = "{{ url_for('static', filename='') }}";
+
+    const COLOURS = [
+        "#f4a237","#e8612c","#d45087","#9b5de5",
+        "#0077b6","#00b4d8","#52c27e","#b5e48c",
+        "#f77f00","#e63946","#457b9d","#2a9d8f"
+    ];
+
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx    = canvas.getContext("2d");
+    let   currentRotation = 0;
+    let   isSpinning      = false;
+
+    // ── Draw wheel ────────────────────────────────────────────
+    function drawWheel(rotation) {
+        const W  = canvas.width;
+        const cx = W / 2, cy = W / 2, r = cx - 2;
+        const n  = dinners.length;
+
+        ctx.clearRect(0, 0, W, W);
+
+        if (n === 0) {
+            ctx.fillStyle = "#1a1929";
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#8a8799";
+            ctx.font = "16px 'DM Sans', sans-serif";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("No dinners yet", cx, cy);
+            return;
+        }
+
+        const arc = (2 * Math.PI) / n;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rotation);
+        ctx.translate(-cx, -cy);
+
+        for (let i = 0; i < n; i++) {
+            const start = i * arc;
+            const end   = start + arc;
+            const mid   = start + arc / 2;
+
+            // Slice
+            ctx.beginPath();
+            ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, start, end); ctx.closePath();
+            ctx.fillStyle = COLOURS[i % COLOURS.length];
+            ctx.fill();
+
+            // Separator
+            ctx.beginPath();
+            ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, start, end); ctx.closePath();
+            ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 1.5; ctx.stroke();
+
+            // Label
+            ctx.save();
+            ctx.translate(cx, cy); ctx.rotate(mid);
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillStyle = "rgba(0,0,0,0.75)";
+
+            const chordHalf = r * Math.sin(arc / 2) * 0.85;
+            const fontSize  = Math.min(15, Math.max(8, chordHalf * 0.55));
+            ctx.font = `bold ${fontSize}px 'DM Sans', sans-serif`;
+
+            const maxW = r * 0.78;
+            let text = dinners[i];
+            while (ctx.measureText(text).width > maxW && text.length > 1) text = text.slice(0, -1);
+            if (text !== dinners[i]) text = text.slice(0, -1) + "…";
+
+            ctx.fillText(text, r * 0.18, 0);
+            ctx.restore();
+        }
+
+        // Centre hub
+        ctx.beginPath(); ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+        ctx.fillStyle = "#0f0e17"; ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 2; ctx.stroke();
+
+        ctx.restore();
+    }
+
+    drawWheel(currentRotation);
+
+    // ── Ease ──────────────────────────────────────────────────
+    function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+    // ── Universal spin handler (used by Spin + both Respins) ──
+    async function doSpin(apiUrl, btnId) {
+        if (isSpinning || dinners.length === 0) return;
+        isSpinning = true;
+
+        // Disable all spin-type buttons while spinning
+        ["spinBtn","respinSteffenBtn","respinSabrinaBtn"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.disabled = true; }
+        });
+
+        document.getElementById(btnId).textContent = "Spinning…";
+
+        // Ask backend which dinner was picked
+        let chosenDinner, chosenImage, message;
+        try {
+            const resp = await fetch(apiUrl);
+            const data = await resp.json();
+            chosenDinner = data.dinner;
+            chosenImage  = data.image;
+            message      = data.message;
+
+            // If backend says it failed (e.g. respin already used), bail out
+            if (!data.success) {
+                showBanner("⚠ " + message, true);
+                resetButtons();
+                return;
+            }
+        } catch (e) {
+            resetButtons();
+            return;
+        }
+
+        // Find slice index
+        const idx = dinners.findIndex(d => d === chosenDinner);
+        const n   = dinners.length;
+        const arc = (2 * Math.PI) / n;
+
+        // Target angle: pointer (top = -π/2) lands at centre of chosen slice
+        const EXTRA = 6;
+        let target = -Math.PI / 2 - idx * arc - arc / 2;
+        while (target <= currentRotation) target += 2 * Math.PI;
+        target += 2 * Math.PI * EXTRA;
+
+        const DURATION   = 4000;
+        const startAngle = currentRotation;
+        const delta      = target - startAngle;
+        let   startTime  = null;
+
+        function animate(ts) {
+            if (!startTime) startTime = ts;
+            const progress = Math.min((ts - startTime) / DURATION, 1);
+            drawWheel(startAngle + delta * easeOut(progress));
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                currentRotation = target;
+                isSpinning = false;
+                onSpinComplete(chosenDinner, chosenImage);
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    function resetButtons() {
+        isSpinning = false;
+        const labels = {
+            spinBtn:           "🎡 Spin the Wheel",
+            respinSteffenBtn:  "↩ Respin Steffen",
+            respinSabrinaBtn:  "↩ Respin Sabrina"
+        };
+        Object.entries(labels).forEach(([id, label]) => {
+            const el = document.getElementById(id);
+            if (el) { el.disabled = false; el.textContent = label; }
+        });
+    }
+
+    // ── After spin lands ──────────────────────────────────────
+    function onSpinComplete(dinner, image) {
+        resetButtons();
+
+        // Update "Current" status card
+        const valEl = document.getElementById("val-current");
+        valEl.textContent = dinner;
+        valEl.className   = "value";
+        document.getElementById("status-current").classList.add("highlight");
+
+        // Highlight in list
+        document.querySelectorAll(".dinner-item").forEach(li => {
+            li.classList.toggle("chosen", li.dataset.name === dinner);
+        });
+
+        // Result banner
+        showBanner("🎉 Tonight: " + dinner + "!");
+
+        // Show dinner image
+        const imgEl  = document.getElementById("dinner-img");
+        const wrapEl = document.getElementById("dinner-image-wrap");
+
+        if (image) {
+            imgEl.alt     = dinner;
+            imgEl.onload  = () => wrapEl.classList.add("visible");
+            imgEl.onerror = () => wrapEl.classList.remove("visible");
+            imgEl.src     = staticBase + "images/" + image;
+        } else {
+            wrapEl.classList.remove("visible");
+        }
+    }
+
+    function showBanner(text, isError = false) {
+        const banner = document.getElementById("result-banner");
+        banner.textContent = text;
+        banner.className   = "";
+        // Force reflow so the animation replays
+        void banner.offsetWidth;
+        banner.classList.add("show");
+        if (isError) banner.style.color = "var(--danger)";
+        else         banner.style.color = "var(--accent)";
+    }
+</script>
+
+</body>
+</html>
+
+<!
+/* Maintain Unavailability
+-->

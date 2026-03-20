@@ -1,3 +1,7 @@
+# =============================
+# Maintain Unavailability
+# =============================
+
 import random
 import os
 import datetime # all dinner events use DD-MM-YYYY format for consistency in the log
@@ -103,6 +107,7 @@ def get_used_dinners_today():
 
     for line in log_rows:
 
+        # guard against malformed lines - defensive coding
         if len(line) != 4:
             continue
 
@@ -162,6 +167,7 @@ def get_most_recent_final_dinner():
 
     log_rows = read_dinner_log()
 
+    # reversed = go backwards
     for line in reversed(log_rows):
 
         if len(line) != 4:
@@ -210,6 +216,7 @@ def get_current_dinner_for_date(date_str):
     return None
 
 def get_final_dinner_for_date(date_str): 
+    
     log_lines = read_dinner_log() 
     
     for line in log_lines: 
@@ -248,6 +255,7 @@ def action_respin(person):
 
     final_dinner = get_final_dinner_for_date(todaysDate)
 
+    # variable to make sure initial spin is either true or false
     spin_found = False
 
     if person != STEFFEN and person != SABRINA:
@@ -256,6 +264,7 @@ def action_respin(person):
     if final_dinner:
         return (False, f"Dinner is already finalized today: {final_dinner}", final_dinner)
     
+    # here we check if the initial spin was done
     for line in todays_events:
         if line[0] == SPIN:
             spin_found = True
@@ -299,6 +308,7 @@ def maybe_auto_finalize_today():
     if final_dinner:
         return (False, "Already finalized", final_dinner)
     
+    # auto-finalize final dinner if both persons has used RESPIN
     if has_person_used_respin_today(SABRINA) and has_person_used_respin_today(STEFFEN):
         if current_dinner is not None:
             success, message, dinner = action_finalize()
@@ -366,7 +376,7 @@ def initialize_database():
         # load dinners from file
         dinners = load_dinners_from_file(DINNER_LIST_FILE)
 
-        # insert dinners into the table - duplicates are ignored with OR IGNORE code
+        # OR IGNORE prevents duplicate dinners because dinner_name is UNIQUE
         for dinner in dinners:
             cursor.execute("""
                 INSERT OR IGNORE INTO dinners (dinner_name)
@@ -414,56 +424,42 @@ def show_all_dinners():
         print(f"{number}. {dinner}")
 
 
-def add_dinner_to_list():
+def add_dinner_to_list(dinner_name):
 
+    if not dinner_name or dinner_name.strip() == "":
+        return False, "Empty input"
+    
     dinners = get_all_dinners_from_db()
 
-    user_input_dinner = input("What dinner would you like to add to the list?")
-    user_input_dinner = user_input_dinner.strip()
-
-    if len(user_input_dinner) == 0:
-        print("Empty input - please write a dinner.")
-        return
-
-    for dinner in dinners:
-        if user_input_dinner == dinner:
-            print(f"{user_input_dinner} is already in the dinner list.")
-            return
+    if dinner_name in dinners:
+        return False, "Dinner already exists"
     
     with sqlite3.connect(DB_FILE) as connection:
         cursor = connection.cursor()
         cursor.execute("""
             INSERT OR IGNORE INTO dinners (dinner_name)
             VALUES (?)
-        """, (user_input_dinner,))
+        """, (dinner_name,))
 
-    print("")
-    print(f"{user_input_dinner} has been added to the list.")
+    return True, f"{dinner_name} added to dinner list"
 
-def remove_dinner_from_list():
+def remove_dinner_from_list(index):
 
     dinners = get_all_dinners_from_db()
 
-    for number, dinner in enumerate(dinners, start = 1):
-        print(f"{number}. {dinner}")
+    if index < 0 or index >= len(dinners):
+        return False, "Invalid number - please input a valid number"
     
-    remove_number = int(input("Input the number of what dinner you want to remove: "))
-    remove_index = remove_number - 1
-
-    if remove_number < 1 or remove_number > len(dinners):
-        print("Invalid number - please enter a number from the list.")
-        return
-
-    removed_dinner = dinners[remove_index]
+    dinner = dinners[index]
 
     with sqlite3.connect(DB_FILE) as connection:
         cursor = connection.cursor()
         cursor.execute("""
             DELETE FROM dinners
             WHERE dinner_name = ?
-        """, (removed_dinner,))
+        """, (dinner,))
 
-    print(f"{removed_dinner} has been removed from the list.")
+    return True, f"{dinner} has been removed from dinner list"
 
 # -----------------
 # MAIN PROGRAM FLOW
@@ -538,5 +534,6 @@ def main():
 if __name__ == "__main__":
     main()
 
+# code to test functions REMEMBER TO COMMENT OUT CODE JUST ABOVE THIS
 #if __name__ == "__main__":
 #    add_dinner_to_list()
